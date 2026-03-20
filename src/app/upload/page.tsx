@@ -157,18 +157,44 @@ export default function UploadPage() {
   const handleImport = async () => {
     setLoading(true);
     try {
-      const result = await db.transactions.bulkAdd(preview);
-      await db.imports.add({
-        filename,
-        fonte: selectedFonte,
-        transactionCount: preview.length,
-        importedAt: new Date().toISOString(),
+      // Get existing transactions to check for duplicates
+      const existingTxs = await db.transactions.toArray();
+      
+      // Create a Set of existing transaction signatures for fast lookup
+      const existingSignatures = new Set(
+        existingTxs.map(tx => `${tx.data}|${tx.descrizione}|${tx.importo}`)
+      );
+      
+      // Filter out duplicates
+      const newTransactions = preview.filter(tx => {
+        const signature = `${tx.data}|${tx.descrizione}|${tx.importo}`;
+        return !existingSignatures.has(signature);
       });
-      setMessage(`Importate ${preview.length} transazioni con successo!`);
-      setMessageType('success');
+      
+      const skippedCount = preview.length - newTransactions.length;
+      
+      if (newTransactions.length > 0) {
+        await db.transactions.bulkAdd(newTransactions);
+        await db.imports.add({
+          filename,
+          fonte: selectedFonte,
+          transactionCount: newTransactions.length,
+          importedAt: new Date().toISOString(),
+        });
+      }
+      
+      if (skippedCount > 0 && newTransactions.length > 0) {
+        setMessage(`Importate ${newTransactions.length} transazioni. ${skippedCount} duplicate saltate.`);
+      } else if (skippedCount > 0 && newTransactions.length === 0) {
+        setMessage(`Tutte le ${skippedCount} transazioni erano già presenti.`);
+        setMessageType('info');
+      } else {
+        setMessage(`Importate ${newTransactions.length} transazioni con successo!`);
+      }
+      setMessageType(newTransactions.length > 0 ? 'success' : 'info');
       setPreview([]);
       setFilename('');
-      setTimeout(() => setMessage(''), 3000);
+      setTimeout(() => setMessage(''), 4000);
     } catch (err) {
       setMessage(`Errore nell'importazione: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setMessageType('error');

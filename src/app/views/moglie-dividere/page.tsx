@@ -193,19 +193,49 @@ export default function MoglieDidividere() {
                     )}
                   </td>
                   <td style={{ padding: '1rem' }}>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        background: tx.persona === 'Moglie' ? '#F8BBD0' : '#D8BFD8',
-                        color: tx.persona === 'Moglie' ? '#880E4F' : '#4A0E4E',
-                      }}
-                    >
-                      {tx.persona}
-                    </span>
+                    {editingCell?.rowId === tx.id && editingCell?.field === 'persona' ? (
+                      <select
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => {
+                          updateTransaction(tx.id!, { persona: editValue });
+                          setEditingCell(null);
+                        }}
+                        style={{
+                          border: '2px solid #667eea',
+                          borderRadius: '8px',
+                          padding: '6px 8px',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {['Virgilio', 'Moglie', 'Figlio', 'Famiglia', 'Da Dividere', 'Entrata'].map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span
+                        onClick={() => {
+                          setEditingCell({ rowId: tx.id!, field: 'persona' });
+                          setEditValue(tx.persona);
+                        }}
+                        style={{
+                          display: 'inline-block',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          background: tx.persona === 'Moglie' ? '#F8BBD0' : '#D8BFD8',
+                          color: tx.persona === 'Moglie' ? '#880E4F' : '#4A0E4E',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {tx.persona}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '1rem', textAlign: 'right', color: '#e74c3c', fontWeight: 600 }}>
                     {formatCurrency(tx.importo)}
