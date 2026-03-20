@@ -6,6 +6,7 @@ import * as Papa from 'papaparse';
 import { db, type Transaction } from '@/lib/db';
 import { FONTI } from '@/lib/constants';
 import { formatCurrency, formatDate } from '@/lib/formatting';
+import { smartParseExcel, smartParseCSV, type ParsedRow } from '@/lib/parsers';
 import { useLiveQuery } from 'dexie-react-hooks';
 import PageHeader from '@/components/PageHeader';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
@@ -42,29 +43,22 @@ export default function UploadPage() {
         try {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'binary' });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json(sheet) as ParsedTransaction[];
+          
+          // Use smart parser to auto-detect format
+          const parsedRows: ParsedRow[] = smartParseExcel(workbook, XLSX);
 
-          const transactions: Transaction[] = rows.map((row) => {
-            const data = (row.data as string) || (row.dataStr as string) || new Date().toISOString().split('T')[0];
-            const importoVal = row.importo as string | number | undefined;
-            const importo =
-              typeof importoVal === 'string' ? parseFloat(importoVal.replace(',', '.')) : importoVal || 0;
-
-            return {
-              data,
-              dataStr: row.dataStr || new Date(data).toLocaleDateString('it-IT'),
-              descrizione: row.descrizione || '',
-              dettaglio: row.dettaglio || '',
-              importo,
-              macroCategoria: row.macroCategoria || 'Acquisto Vario',
-              persona: row.persona || 'Virgilio',
-              note: row.note || '',
-              fonte: selectedFonte,
-              mese: data.substring(0, 7),
-            };
-          });
+          const transactions: Transaction[] = parsedRows.map((row) => ({
+            data: row.data,
+            dataStr: new Date(row.data).toLocaleDateString('it-IT'),
+            descrizione: row.descrizione,
+            dettaglio: row.dettaglio,
+            importo: row.importo,
+            macroCategoria: 'Acquisto Vario',
+            persona: 'Virgilio',
+            note: '',
+            fonte: selectedFonte,
+            mese: row.data.substring(0, 7),
+          }));
 
           setPreview(transactions);
           setFilename(file.name);
@@ -90,28 +84,21 @@ export default function UploadPage() {
             header: true,
             skipEmptyLines: true,
             complete: (results: any) => {
-              const transactions: Transaction[] = results.data.map((row: any) => {
-                const data = row.data || row.dataStr || new Date().toISOString().split('T')[0];
-                const importo =
-                  typeof row.importo === 'string'
-                    ? parseFloat(row.importo.replace(',', '.'))
-                    : row.importo
-                      ? parseFloat(row.importo)
-                      : 0;
+              // Use smart parser to auto-detect format
+              const parsedRows: ParsedRow[] = smartParseCSV(results.data);
 
-                return {
-                  data,
-                  dataStr: row.dataStr || new Date(data).toLocaleDateString('it-IT'),
-                  descrizione: row.descrizione || '',
-                  dettaglio: row.dettaglio || '',
-                  importo,
-                  macroCategoria: row.macroCategoria || 'Acquisto Vario',
-                  persona: row.persona || 'Virgilio',
-                  note: row.note || '',
-                  fonte: selectedFonte,
-                  mese: data.substring(0, 7),
-                };
-              });
+              const transactions: Transaction[] = parsedRows.map((row) => ({
+                data: row.data,
+                dataStr: new Date(row.data).toLocaleDateString('it-IT'),
+                descrizione: row.descrizione,
+                dettaglio: row.dettaglio,
+                importo: row.importo,
+                macroCategoria: 'Acquisto Vario',
+                persona: 'Virgilio',
+                note: '',
+                fonte: selectedFonte,
+                mese: row.data.substring(0, 7),
+              }));
 
               setPreview(transactions);
               setFilename(file.name);
